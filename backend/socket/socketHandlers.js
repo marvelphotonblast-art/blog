@@ -1,6 +1,7 @@
 import Chat from '../models/Chat.js';
 import Poll from '../models/Poll.js';
 import Notification from '../models/Notification.js';
+import Analytics from '../models/Analytics.js';
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 
@@ -278,6 +279,50 @@ export const handleConnection = (io, socket) => {
         socket.to(`blog_${blogId}`).emit('blog_content_updated', data);
     });
 
+    // Handle analytics tracking
+    socket.on('track_analytics', async (data) => {
+        try {
+            const { blogId, event, sessionId, data: eventData } = data;
+            
+            const analyticsEntry = new Analytics({
+                blogId,
+                userId: socket.userId,
+                sessionId,
+                event,
+                data: {
+                    ...eventData,
+                    userAgent: socket.handshake.headers['user-agent'],
+                    ipAddress: socket.handshake.address
+                },
+                ipAddress: socket.handshake.address,
+                isRealTime: true
+            });
+
+            await analyticsEntry.save();
+
+            // Emit real-time analytics update to blog room
+            if (blogId !== 'blogs_page') {
+                const realTimeViews = await Analytics.countDocuments({
+                    blogId,
+                    event: { $in: ['view', 'page_enter'] },
+                    createdAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) }
+                });
+
+                io.to(`blog_${blogId}`).emit('real_time_analytics', {
+                    blogId,
+                    event,
+                    realTimeViews,
+                    activity: {
+                        action: `User ${event}`,
+                        timestamp: new Date(),
+                        sessionId
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error tracking analytics:', error);
+        }
+    });
     // Handle live cursor/selection sharing (for collaborative editing)
     socket.on('cursor_update', (data) => {
         const { blogId, position, selection } = data;

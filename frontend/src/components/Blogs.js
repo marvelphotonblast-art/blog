@@ -21,8 +21,10 @@ import {
   Refresh as RefreshIcon,
   Article as ArticleIcon,
   Search as SearchIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  TrendingUp as TrendingUpIcon
 } from '@mui/icons-material';
+import useSocket from '../hooks/useSocket';
 
 // Styled Components
 const BlogsContainer = styled(Container)(({ theme }) => ({
@@ -141,6 +143,23 @@ const Blogs = () => {
   const [migrationMessage, setMigrationMessage] = useState("");
   const [showMigrationMessage, setShowMigrationMessage] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [trendingBlogs, setTrendingBlogs] = useState([]);
+
+  const { socket, isConnected, trackAnalytics } = useSocket();
+
+  // Track page view
+  useEffect(() => {
+    trackAnalytics('blogs_page', 'page_enter', {
+      deviceType: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent) ? 'mobile' : 'desktop',
+      referrer: document.referrer
+    });
+
+    return () => {
+      trackAnalytics('blogs_page', 'page_exit', {
+        timeSpent: Date.now() - performance.now()
+      });
+    };
+  }, [trackAnalytics]);
 
   const fetchBlogs = useCallback(async () => {
     setLoading(true);
@@ -341,6 +360,26 @@ const Blogs = () => {
         <BlogsSubtitle variant="h6">
           Explore a collection of inspiring blogs written by our community of creators
         </BlogsSubtitle>
+        
+        {/* Live Connection Indicator */}
+        {isConnected && (
+          <Box display="flex" justifyContent="center" mt={2}>
+            <Chip
+              icon={<TrendingUpIcon />}
+              label="Live Updates Active"
+              color="success"
+              variant="outlined"
+              sx={{
+                animation: 'pulse 2s infinite',
+                '@keyframes pulse': {
+                  '0%': { opacity: 1 },
+                  '50%': { opacity: 0.7 },
+                  '100%': { opacity: 1 },
+                },
+              }}
+            />
+          </Box>
+        )}
       </BlogsHeader>
 
       {/* Search Bar */}

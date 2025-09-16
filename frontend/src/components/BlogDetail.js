@@ -110,6 +110,7 @@ const TabPanel = ({ children, value, index, ...other }) => (
     {...other}
   >
     {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+    }
   </div>
 );
 
