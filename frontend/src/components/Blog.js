@@ -19,7 +19,7 @@ import {
     orange, 
     purple 
   } from '@mui/material/colors';
-  import React from 'react';
+  import React, { useState, useEffect } from 'react';
   import DeleteIcon from '@mui/icons-material/Delete';
   import { useNavigate } from 'react-router-dom';
   import axios from 'axios';
@@ -28,8 +28,12 @@ import {
   import { 
     AccessTime as AccessTimeIcon,
     Person as PersonIcon,
-    Edit as EditIcon
+    Edit as EditIcon,
+    Visibility as VisibilityIcon,
+    Share as ShareIcon,
+    Favorite as FavoriteIcon
   } from '@mui/icons-material';
+  import useSocket from '../hooks/useSocket';
   
   // Styled Components - Enhanced
   const StyledCard = styled(Card)(({ theme }) => ({
@@ -247,9 +251,44 @@ import {
   
   const Blog = ({ title, description, imageURL, userName, isUser, id, imageFitMode = 'contain', createdAt }) => {
     const navigate = useNavigate();
+    const { trackAnalytics } = useSocket();
+    const [isLiked, setIsLiked] = useState(false);
+    const [likeCount, setLikeCount] = useState(0);
+    const [viewCount, setViewCount] = useState(0);
+
+    // Track blog view when component mounts
+    useEffect(() => {
+        if (id) {
+            trackAnalytics(id, 'view', {
+                deviceType: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent) ? 'mobile' : 'desktop',
+                referrer: document.referrer,
+                timestamp: new Date()
+            });
+        }
+    }, [id, trackAnalytics]);
     
     const handleEdit = () => {
-      navigate(`/myblogs/${id}`);
+        trackAnalytics(id, 'click', { action: 'edit_blog' });
+        navigate(`/myblogs/${id}`);
+    };
+
+    const handleLike = () => {
+        setIsLiked(!isLiked);
+        setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+        trackAnalytics(id, 'like', { liked: !isLiked });
+    };
+
+    const handleShare = () => {
+        if (navigator.share) {
+            navigator.share({
+                title: title,
+                text: description.substring(0, 100) + '...',
+                url: window.location.href
+            });
+        } else {
+            navigator.clipboard.writeText(window.location.href);
+        }
+        trackAnalytics(id, 'share', { method: navigator.share ? 'native' : 'clipboard' });
     };
   
     const deleteRequest = async () => {
@@ -432,8 +471,8 @@ import {
   
           {/* Blog Footer */}
           <Box px={4} pb={4}>
-            <Grid container spacing={3} alignItems="center">
-              <Grid item xs={12} sm={6}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} sm={4}>
                 <Box display="flex" alignItems="center" gap={1.5}>
                   <PersonIcon fontSize="small" color="action" />
                   <Typography variant="body2" color="text.secondary" fontFamily="'Plus Jakarta Sans', sans-serif" fontWeight="500">
@@ -441,7 +480,42 @@ import {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <IconButton
+                    size="small"
+                    onClick={handleLike}
+                    sx={{ 
+                      color: isLiked ? 'error.main' : 'text.secondary',
+                      '&:hover': { color: 'error.main' }
+                    }}
+                  >
+                    <FavoriteIcon fontSize="small" />
+                  </IconButton>
+                  <Typography variant="caption" color="text.secondary">
+                    {likeCount}
+                  </Typography>
+                  
+                  <IconButton
+                    size="small"
+                    onClick={handleShare}
+                    sx={{ 
+                      color: 'text.secondary',
+                      '&:hover': { color: 'primary.main' }
+                    }}
+                  >
+                    <ShareIcon fontSize="small" />
+                  </IconButton>
+                  
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <VisibilityIcon fontSize="small" color="action" />
+                    <Typography variant="caption" color="text.secondary">
+                      {viewCount}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={4}>
                 <Box display="flex" justifyContent="flex-end">
                   <Chip 
                     label="Blog Post" 
