@@ -28,6 +28,12 @@ const analyticsSchema = new Schema({
             'click',
             'poll_vote',
             'chat_message'
+            'page_enter',
+            'page_exit',
+            'interaction',
+            'download',
+            'video_play',
+            'video_pause'
         ],
         required: true
     },
@@ -38,18 +44,25 @@ const analyticsSchema = new Schema({
         browser: String,
         location: {
             country: String,
+            countryCode: String,
             city: String
         },
         referrer: String,
+        pageUrl: String,
+        userAgent: String,
         metadata: mongoose.Schema.Types.Mixed
     },
     ipAddress: {
         type: String,
         required: true
     },
-    userAgent: {
-        type: String,
-        required: true
+    isRealTime: {
+        type: Boolean,
+        default: true
+    },
+    processed: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true
@@ -59,5 +72,7 @@ const analyticsSchema = new Schema({
 analyticsSchema.index({ blogId: 1, createdAt: -1 });
 analyticsSchema.index({ userId: 1, createdAt: -1 });
 analyticsSchema.index({ event: 1, createdAt: -1 });
+analyticsSchema.index({ sessionId: 1, createdAt: -1 });
+analyticsSchema.index({ isRealTime: 1, processed: 1 });
 
 export default mongoose.model("Analytics", analyticsSchema);

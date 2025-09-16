@@ -10,6 +10,7 @@ import blogRouter from "./routes/blog-routes.js";
 import chatRouter from "./routes/chat-routes.js";
 import pollRouter from "./routes/poll-routes.js";
 import notificationRouter from "./routes/notification-routes.js";
+import analyticsRouter from "./routes/analytics-routes.js";
 import { handleConnection, authenticateSocket } from "./socket/socketHandlers.js";
 
 // Load environment variables
@@ -54,6 +55,7 @@ app.use("/api/blog",blogRouter)
 app.use("/api/chat", chatRouter);
 app.use("/api/polls", pollRouter);
 app.use("/api/notifications", notificationRouter);
+app.use("/api/analytics", analyticsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

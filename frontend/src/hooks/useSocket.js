@@ -142,6 +142,22 @@ const useSocket = () => {
         }
     };
 
+    const trackAnalytics = (blogId, event, data = {}) => {
+        if (socketRef.current && isConnected) {
+            socketRef.current.emit('track_analytics', {
+                blogId,
+                event,
+                data,
+                sessionId: localStorage.getItem('sessionId') || generateSessionId()
+            });
+        }
+    };
+
+    const generateSessionId = () => {
+        const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('sessionId', sessionId);
+        return sessionId;
+    };
     return {
         socket: socketRef.current,
         isConnected,
@@ -154,7 +170,8 @@ const useSocket = () => {
         addReaction,
         votePoll,
         updateBlog,
-        updateCursor
+        updateCursor,
+        trackAnalytics
     };
 };
 

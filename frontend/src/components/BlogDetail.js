@@ -13,7 +13,11 @@ import {
   CircularProgress,
   Avatar,
   Card,
-  CardContent
+  CardContent,
+  Tab,
+  Tabs,
+  Badge,
+  IconButton
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { 
@@ -25,7 +29,12 @@ import {
   CheckCircle as CheckCircleIcon,
   Person as PersonIcon,
   CalendarToday as CalendarIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Chat as ChatIcon,
+  Poll as PollIcon,
+  Notifications as NotificationsIcon,
+  Visibility as VisibilityIcon,
+  Share as ShareIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import React, { useEffect, useState, useCallback } from 'react';
@@ -33,6 +42,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Swal from 'sweetalert2';
 import { serverURL } from '../helper/Helper';
+import RealTimeChat from './RealTimeChat';
+import LivePoll from './LivePoll';
+import LiveNotifications from './LiveNotifications';
+import LiveAnalytics from './LiveAnalytics';
+import useSocket from '../hooks/useSocket';
 
 import 'sweetalert2/dist/sweetalert2.css';
 
@@ -41,9 +55,6 @@ const EditContainer = styled(Container)(({ theme }) => ({
   padding: theme.spacing(4),
   background: 'linear-gradient(135deg, #f5f7fa, #e4e9f7)',
   minHeight: '100vh',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
 }));
 
 const EditCard = styled(Paper)(({ theme }) => ({
@@ -53,161 +64,54 @@ const EditCard = styled(Paper)(({ theme }) => ({
   boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
   border: '1px solid rgba(255, 255, 255, 0.3)',
   padding: theme.spacing(4),
-  width: '100%',
-  maxWidth: '800px',
-  '& .bounce-in': {
-    animation: 'bounceIn 0.8s ease-out',
-  },
-  '& .slide-up': {
-    animation: 'slideUp 0.6s ease-out',
-  },
-  '@keyframes bounceIn': {
-    '0%': {
-      opacity: 0,
-      transform: 'scale(0.9)',
-    },
-    '50%': {
-      opacity: 0.7,
-      transform: 'scale(1.05)',
-    },
-    '100%': {
-      opacity: 1,
-      transform: 'scale(1)',
-    },
-  },
-  '@keyframes slideUp': {
-    '0%': {
-      opacity: 0,
-      transform: 'translateY(20px)',
-    },
-    '100%': {
-      opacity: 1,
-      transform: 'translateY(0)',
-    },
+  marginBottom: theme.spacing(3),
+}));
+
+const LiveFeaturesContainer = styled(Box)(({ theme }) => ({
+  display: 'grid',
+  gridTemplateColumns: '2fr 1fr',
+  gap: theme.spacing(3),
+  marginTop: theme.spacing(4),
+  [theme.breakpoints.down('lg')]: {
+    gridTemplateColumns: '1fr',
   },
 }));
 
-const EditHeader = styled(Box)(({ theme }) => ({
-  textAlign: 'center',
-  marginBottom: theme.spacing(4),
-  '& h1': {
-    fontSize: '3.5rem',
-    fontWeight: 800,
-    background: 'linear-gradient(90deg, #667eea, #764ba2)',
-    backgroundClip: 'text',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-  },
-  '& p': {
-    fontSize: '1.2rem',
-    color: '#666',
-    marginTop: theme.spacing(1),
-  },
+const RightSidebar = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: theme.spacing(3),
 }));
 
-const EditTitle = styled(Typography)(({ theme }) => ({
-  fontSize: '2.5rem',
-  fontWeight: 700,
-  color: '#333',
-  marginBottom: theme.spacing(1),
-}));
-
-const EditSubtitle = styled(Typography)(({ theme }) => ({
-  fontSize: '1rem',
-  color: '#666',
-  marginBottom: theme.spacing(4),
-}));
-
-const BackButton = styled(Button)(({ theme }) => ({
-  background: 'linear-gradient(90deg, #667eea, #764ba2)',
-  color: 'white',
-  '&:hover': {
-    background: 'linear-gradient(90deg, #5a67d8, #6b46c1)',
-  },
-  borderRadius: theme.spacing(2),
-  padding: theme.spacing(1, 3),
-  textTransform: 'none',
-  fontWeight: 600,
-  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
-}));
-
-const FormSection = styled(Box)(({ theme }) => ({
-  marginBottom: theme.spacing(4),
-}));
-
-const SectionTitle = styled(Typography)(({ theme }) => ({
+const LiveIndicator = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   gap: theme.spacing(1),
-  fontSize: '1.1rem',
-  fontWeight: 600,
-  color: '#555',
-  marginBottom: theme.spacing(2),
-}));
-
-const StyledTextField = styled(TextField)(({ theme }) => ({
-  '& .MuiOutlinedInput-root': {
-    borderRadius: theme.spacing(2),
-    background: '#f5f5f5',
-    '& fieldset': {
-      borderColor: '#e0e0e0',
-    },
-    '&:hover fieldset': {
-      borderColor: '#bdbdbd',
-    },
-    '&.Mui-focused fieldset': {
-      borderColor: '#667eea',
-    },
-  },
-  '& .MuiOutlinedInput-input': {
-    padding: theme.spacing(2),
-  },
-}));
-
-const SubmitButton = styled(Button)(({ theme }) => ({
-  background: 'linear-gradient(90deg, #667eea, #764ba2)',
+  padding: theme.spacing(1, 2),
+  background: 'linear-gradient(135deg, #4caf50, #45a049)',
   color: 'white',
-  '&:hover': {
-    background: 'linear-gradient(90deg, #5a67d8, #6b46c1)',
-  },
-  borderRadius: theme.spacing(2),
-  padding: theme.spacing(1.5, 4),
-  textTransform: 'none',
-  fontWeight: 600,
-  fontSize: '1.1rem',
-  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
-  '& .MuiCircularProgress-root': {
-    marginRight: theme.spacing(1),
-  },
-}));
-
-const UserInfoCard = styled(Card)(({ theme }) => ({
-  background: 'rgba(255, 255, 255, 0.9)',
-  backdropFilter: 'blur(20px)',
   borderRadius: theme.spacing(3),
-  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-  border: '1px solid rgba(255, 255, 255, 0.3)',
-  marginBottom: theme.spacing(4),
-  overflow: 'hidden',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '3px',
-    background: 'linear-gradient(90deg, #667eea, #764ba2)',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  animation: 'pulse 2s infinite',
+  '@keyframes pulse': {
+    '0%': { opacity: 1 },
+    '50%': { opacity: 0.7 },
+    '100%': { opacity: 1 },
   },
 }));
 
-const UserAvatar = styled(Avatar)(({ theme }) => ({
-  width: 60,
-  height: 60,
-  fontSize: '1.5rem',
-  fontWeight: 700,
-  background: 'linear-gradient(135deg, #667eea, #764ba2)',
-  boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
-}));
+const TabPanel = ({ children, value, index, ...other }) => (
+  <div
+    role="tabpanel"
+    hidden={value !== index}
+    id={`live-tabpanel-${index}`}
+    aria-labelledby={`live-tab-${index}`}
+    {...other}
+  >
+    {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+  </div>
+);
 
 const BlogDetail = () => {
   const navigate = useNavigate();
@@ -216,19 +120,34 @@ const BlogDetail = () => {
   const [input, setInput] = useState({
     title: '',
     description: '',
-    image: '', // Changed from imageURL to image to match backend
+    image: '',
   });
   const [blog, setBlog] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState(0);
+  const [liveViewers, setLiveViewers] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // Socket connection for real-time features
+  const { socket, isConnected, joinBlog, updateBlog } = useSocket();
 
   const handleChange = (e) => {
     setInput((prevState) => ({
       ...prevState,
       [e.target.name]: e.target.value,
     }));
-    // Clear error when user starts typing
+    
+    // Real-time content updates
+    if (isConnected && blog) {
+      updateBlog(blog._id, {
+        field: e.target.name,
+        value: e.target.value,
+        user: currentUser
+      });
+    }
+    
     if (error) setError("");
   };
 
@@ -247,7 +166,6 @@ const BlogDetail = () => {
         }
       });
       const data = res.data;
-      console.log('Fetched blog data:', data); // Debug log
       return data.blog;
     } catch (error) {
       console.error('Error fetching blog details:', error);
@@ -264,15 +182,14 @@ const BlogDetail = () => {
         setInput({
           title: data.title || '',
           description: data.description || '',
-          image: data.image || '', // Changed from imageURL to image
-        });
-        console.log('Set input state:', {
-          title: data.title || '',
-          description: data.description || '',
           image: data.image || '',
-        }); // Debug log
+        });
         
-        // Check if the blog belongs to the current user
+        // Join blog room for real-time features
+        if (isConnected) {
+          joinBlog(data._id);
+        }
+        
         if (currentUser && data.user && currentUser._id !== data.user._id) {
           setError('You can only edit your own blogs');
         }
@@ -283,7 +200,44 @@ const BlogDetail = () => {
     };
     
     loadBlogDetails();
-  }, [fetchDetails, currentUser]);
+  }, [fetchDetails, currentUser, isConnected, joinBlog]);
+
+  // Socket event listeners
+  useEffect(() => {
+    if (!socket || !blog) return;
+
+    const handleBlogContentUpdated = (data) => {
+      if (data.blogId === blog._id && data.user._id !== currentUser._id) {
+        // Show real-time updates from other users
+        setInput(prev => ({
+          ...prev,
+          [data.field]: data.value
+        }));
+      }
+    };
+
+    const handleUserJoinedBlog = (data) => {
+      if (data.blogId === blog._id) {
+        setLiveViewers(prev => prev + 1);
+      }
+    };
+
+    const handleUserLeftBlog = (data) => {
+      if (data.blogId === blog._id) {
+        setLiveViewers(prev => Math.max(0, prev - 1));
+      }
+    };
+
+    socket.on('blog_content_updated', handleBlogContentUpdated);
+    socket.on('user_joined_blog', handleUserJoinedBlog);
+    socket.on('user_left_blog', handleUserLeftBlog);
+
+    return () => {
+      socket.off('blog_content_updated', handleBlogContentUpdated);
+      socket.off('user_joined_blog', handleUserJoinedBlog);
+      socket.off('user_left_blog', handleUserLeftBlog);
+    };
+  }, [socket, blog, currentUser]);
 
   const sendRequest = async () => {
     try {
@@ -292,11 +246,10 @@ const BlogDetail = () => {
         throw new Error('User not authenticated');
       }
 
-      console.log('Sending update request with:', input); // Debug log
       const res = await axios.put(`${serverURL}/api/blog/update/${id}`, {
         title: input.title,
         description: input.description,
-        image: input.image, // Include image field in the request
+        image: input.image,
       }, {
         headers: {
           'Authorization': `Bearer ${userId}`,
@@ -304,7 +257,6 @@ const BlogDetail = () => {
         }
       });
       const data = res.data;
-      console.log('Update response:', data); // Debug log
       return data;
     } catch (error) {
       console.error('Error updating blog:', error);
@@ -317,7 +269,6 @@ const BlogDetail = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validation
     if (!input.title.trim()) {
       setError('Title is required');
       return;
@@ -332,7 +283,6 @@ const BlogDetail = () => {
 
     try {
       const data = await sendRequest();
-      console.log('Blog updated successfully:', data);
       
       Swal.fire({
         icon: 'success',
@@ -340,25 +290,22 @@ const BlogDetail = () => {
         text: 'Your blog has been updated and saved.',
         background: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(20px)',
-        customClass: {
-          popup: 'swal2-custom-popup',
-          title: 'swal2-custom-title',
-          confirmButton: 'swal2-custom-confirm',
-        },
       }).then(() => navigate('/myblogs'));
     } catch (error) {
       console.error('Error updating blog:', error);
-      // Error is already set in sendRequest
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
   };
 
   const handleBack = () => {
     navigate('/myblogs');
   };
 
-  // Format date function
   const formatDate = (dateString) => {
     if (!dateString) return 'Date not available';
     try {
@@ -393,222 +340,238 @@ const BlogDetail = () => {
             <Alert severity="error" sx={{ mb: 4, borderRadius: 3, fontSize: '1.1rem' }}>
               {error}
             </Alert>
-            <BackButton onClick={handleBack} startIcon={<ArrowBackIcon />}>
+            <Button onClick={handleBack} startIcon={<ArrowBackIcon />} variant="contained">
               Back to My Blogs
-            </BackButton>
+            </Button>
           </Box>
         </Container>
       </EditContainer>
     );
   }
 
+  const isOwner = currentUser && blog && currentUser._id === blog.user._id;
+
   return (
     <EditContainer maxWidth={false}>
-      <Container maxWidth="lg">
-        <EditCard elevation={0} className="bounce-in">
-          {/* Header */}
-          <EditHeader>
-            <EditTitle variant="h1">
-              Edit Your Blog
-            </EditTitle>
-            <EditSubtitle variant="body1">
-              Update your blog post with new content and make it even better
-            </EditSubtitle>
-          </EditHeader>
+      <Container maxWidth="xl">
+        {/* Header with Live Indicators */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+          <Button onClick={handleBack} startIcon={<ArrowBackIcon />} variant="contained">
+            Back to My Blogs
+          </Button>
+          
+          <Box display="flex" alignItems="center" gap={2}>
+            {isConnected && (
+              <LiveIndicator>
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    backgroundColor: 'white',
+                    animation: 'pulse 1s infinite',
+                  }}
+                />
+                Live
+              </LiveIndicator>
+            )}
+            
+            <Chip
+              icon={<VisibilityIcon />}
+              label={`${liveViewers} viewing`}
+              color="primary"
+              variant="outlined"
+            />
+            
+            <IconButton color="primary">
+              <ShareIcon />
+            </IconButton>
+          </Box>
+        </Box>
 
-          {/* Back Button */}
-          <Box display="flex" justifyContent="flex-start" mb={4}>
-            <BackButton onClick={handleBack} startIcon={<ArrowBackIcon />}>
-              Back to My Blogs
-            </BackButton>
+        <LiveFeaturesContainer>
+          {/* Main Content Area */}
+          <Box>
+            {/* Blog Edit Form */}
+            <EditCard elevation={0}>
+              <Typography variant="h4" fontWeight={700} mb={3} color="primary">
+                {isOwner ? 'Edit Your Blog' : 'View Blog'}
+              </Typography>
+
+              {error && (
+                <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+                  {error}
+                </Alert>
+              )}
+
+              {blog && (
+                <form onSubmit={handleSubmit}>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <TextField
+                        name="title"
+                        onChange={handleChange}
+                        value={input.title}
+                        placeholder="Enter your blog title"
+                        fullWidth
+                        multiline
+                        rows={2}
+                        disabled={!isOwner}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <TitleIcon color="action" />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                          }
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={12}>
+                      <TextField
+                        name="description"
+                        onChange={handleChange}
+                        value={input.description}
+                        placeholder="Write your blog content here..."
+                        fullWidth
+                        multiline
+                        rows={12}
+                        disabled={!isOwner}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                              <DescriptionIcon color="action" />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                          }
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={12}>
+                      <TextField
+                        name="image"
+                        onChange={handleChange}
+                        value={input.image}
+                        placeholder="Enter image URL for your blog"
+                        fullWidth
+                        disabled={!isOwner}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <ImageIcon color="action" />
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                          }
+                        }}
+                      />
+                    </Grid>
+
+                    {isOwner && (
+                      <Grid item xs={12}>
+                        <Button
+                          type="submit"
+                          variant="contained"
+                          disabled={isSubmitting}
+                          startIcon={isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />}
+                          size="large"
+                          sx={{
+                            background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                            '&:hover': {
+                              background: 'linear-gradient(135deg, #5a6fd8, #6a4190)',
+                            },
+                          }}
+                        >
+                          {isSubmitting ? 'Updating Blog...' : 'Update Blog'}
+                        </Button>
+                      </Grid>
+                    )}
+                  </Grid>
+                </form>
+              )}
+            </EditCard>
+
+            {/* Live Analytics */}
+            {blog && (
+              <LiveAnalytics blogId={blog._id} isOwner={isOwner} />
+            )}
           </Box>
 
-          {/* User Info Card */}
-          {blog && blog.user ? (
-            <UserInfoCard className="slide-up">
-              <CardContent>
-                <Grid container spacing={3} alignItems="center">
-                  <Grid item>
-                    <UserAvatar>
-                      {blog.user.name ? blog.user.name.charAt(0).toUpperCase() : 'U'}
-                    </UserAvatar>
-                  </Grid>
-                  <Grid item xs>
-                    <Typography variant="h6" fontWeight={700} color="primary" gutterBottom>
-                      {blog.user.name || 'Unknown User'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" display="flex" alignItems="center" gap={1}>
-                      <CalendarIcon fontSize="small" />
-                      {formatDate(blog.createdAt)}
-                    </Typography>
-                  </Grid>
-                  <Grid item>
-                    <Chip
-                      icon={<PersonIcon />}
-                      label="Blog Author"
-                      color="primary"
-                      variant="outlined"
-                      sx={{ fontWeight: 600 }}
-                    />
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </UserInfoCard>
-          ) : (
-            <Alert 
-              severity="warning" 
-              icon={<WarningIcon />}
-              sx={{ mb: 4, borderRadius: 3 }}
-              className="slide-up"
-            >
-              User details not available. This might be a system issue.
-            </Alert>
-          )}
-
-          {/* Error Alert */}
-          {error && (
-            <Alert severity="error" sx={{ mb: 4, borderRadius: 3, fontSize: '1rem' }} className="slide-up">
-              {error}
-            </Alert>
-          )}
-
-          {/* Edit Form */}
-          {input && (
-            <form onSubmit={handleSubmit}>
-              <Grid container spacing={4}>
-                {/* Title Section */}
-                <Grid item xs={12}>
-                  <FormSection>
-                    <SectionTitle variant="h6">
-                      <TitleIcon color="primary" />
-                      Blog Title
-                    </SectionTitle>
-                    <StyledTextField
-                      name="title"
-                      onChange={handleChange}
-                      value={input.title}
-                      placeholder="Enter your blog title"
-                      fullWidth
-                      multiline
-                      rows={2}
-                      className="slide-up"
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <TitleIcon color="action" sx={{ fontSize: '1.5rem' }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </FormSection>
-                </Grid>
-
-                {/* Description Section */}
-                <Grid item xs={12}>
-                  <FormSection>
-                    <SectionTitle variant="h6">
-                      <DescriptionIcon color="primary" />
-                      Blog Content
-                    </SectionTitle>
-                    <StyledTextField
-                      name="description"
-                      onChange={handleChange}
-                      value={input.description}
-                      placeholder="Write your blog content here..."
-                      fullWidth
-                      multiline
-                      rows={8}
-                      className="slide-up"
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <DescriptionIcon color="action" sx={{ fontSize: '1.5rem' }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </FormSection>
-                </Grid>
-
-                {/* Image URL Section */}
-                <Grid item xs={12}>
-                  <FormSection>
-                    <SectionTitle variant="h6">
-                      <ImageIcon color="primary" />
-                      Image URL
-                    </SectionTitle>
-                    <StyledTextField
-                      name="image"
-                      onChange={handleChange}
-                      value={input.image}
-                      placeholder="Enter image URL for your blog"
-                      fullWidth
-                      className="slide-up"
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <ImageIcon color="action" sx={{ fontSize: '1.5rem' }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                    {input.image && (
-                      <Box mt={2} textAlign="center">
-                        <img 
-                          src={input.image} 
-                          alt="Blog preview" 
-                          style={{ 
-                            maxWidth: '100%', 
-                            maxHeight: '200px', 
-                            borderRadius: '8px',
-                            border: '2px solid #e0e0e0'
-                          }}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                          }}
-                        />
-                        <Typography 
-                          variant="caption" 
-                          color="error" 
-                          style={{ display: 'none' }}
-                        >
-                          Invalid image URL
-                        </Typography>
-                      </Box>
-                    )}
-                  </FormSection>
-                </Grid>
-              </Grid>
-
-              <Divider sx={{ my: 4 }} />
-
-              {/* Submit Button */}
-              <SubmitButton
-                type="submit"
-                variant="contained"
-                disabled={isSubmitting}
-                startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
-                className="slide-up"
+          {/* Right Sidebar with Live Features */}
+          <RightSidebar>
+            <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
+              <Tabs
+                value={activeTab}
+                onChange={handleTabChange}
+                variant="fullWidth"
+                sx={{
+                  '& .MuiTab-root': {
+                    minHeight: 60,
+                    fontWeight: 600,
+                  }
+                }}
               >
-                {isSubmitting ? 'Updating Blog...' : 'Update Blog'}
-              </SubmitButton>
+                <Tab
+                  icon={
+                    <Badge badgeContent={0} color="primary">
+                      <ChatIcon />
+                    </Badge>
+                  }
+                  label="Live Chat"
+                />
+                <Tab
+                  icon={<PollIcon />}
+                  label="Polls"
+                />
+                <Tab
+                  icon={
+                    <Badge badgeContent={unreadNotifications} color="error">
+                      <NotificationsIcon />
+                    </Badge>
+                  }
+                  label="Notifications"
+                />
+              </Tabs>
 
-              {/* Success Message */}
-              {isSubmitting && (
-                <Box mt={3} textAlign="center">
-                  <Chip
-                    icon={<CheckCircleIcon />}
-                    label="Saving your changes..."
-                    color="success"
-                    variant="outlined"
-                    sx={{ fontSize: '1rem', padding: 1 }}
+              <TabPanel value={activeTab} index={0}>
+                {blog && (
+                  <RealTimeChat
+                    blogId={blog._id}
+                    isVisible={activeTab === 0}
                   />
-                </Box>
-              )}
-            </form>
-          )}
-        </EditCard>
+                )}
+              </TabPanel>
+
+              <TabPanel value={activeTab} index={1}>
+                {blog && (
+                  <LivePoll
+                    blogId={blog._id}
+                    isOwner={isOwner}
+                  />
+                )}
+              </TabPanel>
+
+              <TabPanel value={activeTab} index={2}>
+                <LiveNotifications
+                  onUnreadCountChange={setUnreadNotifications}
+                />
+              </TabPanel>
+            </Paper>
+          </RightSidebar>
+        </LiveFeaturesContainer>
       </Container>
     </EditContainer>
   );
